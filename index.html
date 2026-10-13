@@ -639,9 +639,13 @@ footer h4{color:#fff;margin-bottom:10px;font-size:15px}footer li{list-style:none
   <div id="f-success" style="display:none;text-align:center;padding:16px 8px;animation:fi .3s">
     <div style="width:52px;height:52px;border-radius:50%;background:#ecfdf5;color:#059669;display:grid;place-items:center;font-size:26px;margin:0 auto 12px;border:2px solid #a7f3d0">✓</div>
     <h3 style="font-size:21px;color:var(--ink);margin-bottom:8px">Successfully Submitted!</h3>
+    <div id="f-act-notice" style="display:none;background:#fef3c7;border:1.5px solid #f59e0b;color:#92400e;border-radius:12px;padding:12px;margin-bottom:14px;text-align:left;font-size:12.5px;line-height:1.5">
+      <b>⚠️ Action Required for csedutrack2026@gmail.com:</b><br>
+      FormSubmit sent an activation email to <b>csedutrack2026@gmail.com</b>. Open your Gmail inbox (or Spam folder) and click the <b>"Activate Form"</b> button once to enable automatic email delivery for all future submissions.
+    </div>
     <p style="font-size:14px;color:var(--ink);line-height:1.55;margin-bottom:14px">Our team member will consult you as soon as possible. If you do not get a reply through mail, please contact directly to the given numbers through WhatsApp or direct call.</p>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:16px">
-      <a href="https://wa.me/919642402639" target="_blank" rel="noopener" class="phone-badge" style="background:#25d366;color:#fff;text-decoration:none;padding:7px 14px;border-radius:99px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px">💬 WhatsApp</a>
+      <a id="f-wa-btn" href="https://wa.me/919642402639" target="_blank" rel="noopener" class="phone-badge" style="background:#25d366;color:#fff;text-decoration:none;padding:7px 14px;border-radius:99px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px">💬 WhatsApp Enquiry</a>
       <a href="tel:+919642402639" class="phone-badge" style="background:var(--navy);color:#fff;text-decoration:none;padding:7px 14px;border-radius:99px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px">📞 Call Officer</a>
     </div>
     <div style="font-size:12.5px;color:var(--mute);display:flex;align-items:center;justify-content:center;gap:4px">
@@ -754,6 +758,31 @@ function resetEnquiryForm() {
   if (barEl) barEl.style.width = '100%';
 }
 
+function showSuccessState(durationSec) {
+  fieldsBox.style.display = 'none';
+  successBox.style.display = 'block';
+
+  var timeLeft = durationSec || 5;
+  if (countdownEl) countdownEl.textContent = timeLeft;
+  if (barEl) {
+    barEl.style.transition = 'none';
+    barEl.style.width = '100%';
+    setTimeout(function() {
+      barEl.style.transition = 'width ' + timeLeft + 's linear';
+      barEl.style.width = '0%';
+    }, 40);
+  }
+
+  if (countdownTimer) clearInterval(countdownTimer);
+  countdownTimer = setInterval(function() {
+    timeLeft--;
+    if (countdownEl) countdownEl.textContent = timeLeft;
+    if (timeLeft <= 0) {
+      resetEnquiryForm();
+    }
+  }, 1000);
+}
+
 formEl.addEventListener('submit', function(e) {
   e.preventDefault();
   var d = e.target;
@@ -767,6 +796,13 @@ formEl.addEventListener('submit', function(e) {
   if (submitBtn) {
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
+  }
+
+  // Pre-fill WhatsApp link with user's submitted query
+  var waText = 'Hello CS EduTrack team, I submitted an enquiry on the website:\n\n*Name:* ' + name + '\n*School:* ' + school + '\n*Phone:* ' + phone + '\n*Requirements:* ' + (message || 'General enquiry');
+  var waBtn = document.getElementById('f-wa-btn');
+  if (waBtn) {
+    waBtn.href = 'https://wa.me/919642402639?text=' + encodeURIComponent(waText);
   }
 
   // Send enquiry email to csedutrack2026@gmail.com
@@ -787,30 +823,23 @@ formEl.addEventListener('submit', function(e) {
       'Accept': 'application/json'
     },
     body: JSON.stringify(payload)
-  }).catch(function(err) {
-    console.warn('FormSubmit background notification:', err);
-  });
-
-  // Display success card immediately
-  fieldsBox.style.display = 'none';
-  successBox.style.display = 'block';
-
-  // 5-second countdown & progress bar
-  var timeLeft = 5;
-  if (countdownEl) countdownEl.textContent = timeLeft;
-  if (barEl) {
-    barEl.style.width = '100%';
-    setTimeout(function() { barEl.style.width = '0%'; }, 40);
-  }
-
-  if (countdownTimer) clearInterval(countdownTimer);
-  countdownTimer = setInterval(function() {
-    timeLeft--;
-    if (countdownEl) countdownEl.textContent = timeLeft;
-    if (timeLeft <= 0) {
-      resetEnquiryForm();
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    var actNotice = document.getElementById('f-act-notice');
+    var isActivationNeeded = data && (data.success === false || data.success === 'false') && data.message && data.message.indexOf('Activation') !== -1;
+    if (isActivationNeeded) {
+      if (actNotice) actNotice.style.display = 'block';
+      showSuccessState(10);
+    } else {
+      if (actNotice) actNotice.style.display = 'none';
+      showSuccessState(5);
     }
-  }, 1000);
+  })
+  .catch(function(err) {
+    console.warn('FormSubmit background notification:', err);
+    showSuccessState(5);
+  });
 });
 /* school-themed floating background */
 var IC=['🎓','📚','✏️','🍎','🔔','📐','🖍️','🔬','📓','🏫','🧮','⭐'],still=matchMedia('(prefers-reduced-motion:reduce)').matches;
